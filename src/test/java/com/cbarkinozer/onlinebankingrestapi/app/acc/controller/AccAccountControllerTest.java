@@ -485,4 +485,60 @@ class AccAccountControllerTest {
         assertEquals(genBusinessException.getBaseErrorMessage().getDetailMessage(), result.getBaseErrorMessage().getDetailMessage());
         assertNotNull(result);
     }
+
+    @Test
+    void shouldGetAccountStatement() {
+
+        LocalDate startDate = LocalDate.of(2022, 1, 1);
+        LocalDate endDate = LocalDate.of(2022, 1, 31);
+
+        List<AccAccountActivityDto> dummyAccAccountActivityDtoList = new ArrayList<>();
+        dummyAccAccountActivityDtoList.add(createDummyAccAccountActivityDto());
+
+        when(accAccountActivityService.getAccountStatement(1L, startDate, endDate)).thenReturn(dummyAccAccountActivityDtoList);
+
+        ResponseEntity<RestResponse<List<AccAccountActivityDto>>> result =
+                accAccountController.getAccountStatement(1L, startDate, endDate);
+
+        assertTrue(Objects.requireNonNull(result.getBody()).isSuccess());
+        assertEquals(dummyAccAccountActivityDtoList, result.getBody().getData());
+        assertNull(result.getBody().getMessage());
+        assertNotNull(result);
+    }
+
+    @Test
+    void shouldNotGetAccountStatement_WhenAccount_DoesNotExist() {
+
+        LocalDate startDate = LocalDate.of(2022, 1, 1);
+        LocalDate endDate = LocalDate.of(2022, 1, 31);
+
+        IllegalFieldException illegalFieldException = new IllegalFieldException(AccErrorMessage.ACCOUNT_NOT_FOUND);
+
+        when(accAccountActivityService.getAccountStatement(0L, startDate, endDate)).thenThrow(illegalFieldException);
+
+        IllegalFieldException result = assertThrows(IllegalFieldException.class,
+                () -> accAccountController.getAccountStatement(0L, startDate, endDate));
+
+        assertEquals(illegalFieldException.getBaseErrorMessage().getMessage(), result.getBaseErrorMessage().getMessage());
+        assertEquals(illegalFieldException.getBaseErrorMessage().getDetailMessage(), result.getBaseErrorMessage().getDetailMessage());
+        assertNotNull(result);
+    }
+
+    @Test
+    void shouldNotGetAccountStatement_WhenDateInterval_IsInvalid() {
+
+        LocalDate startDate = LocalDate.of(2022, 2, 1);
+        LocalDate endDate = LocalDate.of(2022, 1, 1);
+
+        IllegalFieldException illegalFieldException = new IllegalFieldException(AccErrorMessage.INVALID_DATE_INTERVAL);
+
+        when(accAccountActivityService.getAccountStatement(1L, startDate, endDate)).thenThrow(illegalFieldException);
+
+        IllegalFieldException result = assertThrows(IllegalFieldException.class,
+                () -> accAccountController.getAccountStatement(1L, startDate, endDate));
+
+        assertEquals(illegalFieldException.getBaseErrorMessage().getMessage(), result.getBaseErrorMessage().getMessage());
+        assertEquals(illegalFieldException.getBaseErrorMessage().getDetailMessage(), result.getBaseErrorMessage().getDetailMessage());
+        assertNotNull(result);
+    }
 }

@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -44,6 +46,16 @@ public class AccAccountValidationService {
     public void controlIsAccountIdExist(Long accountId) {
         Optional<AccAccount> accountOptional = accAccountEntityService.findAccountById(accountId);
         if(accountOptional.isEmpty()){
+            throw new IllegalFieldException(AccErrorMessage.ACCOUNT_NOT_FOUND);
+        }
+    }
+
+    public void controlIsAccountOwnedByCustomer(Long accountId, Long customerId) {
+        Optional<AccAccount> accountOptional = accAccountEntityService.findAccountById(accountId);
+        boolean isOwnedByCustomer = customerId != null
+                && accountOptional.isPresent()
+                && Objects.equals(accountOptional.get().getCustomerId(), customerId);
+        if(!isOwnedByCustomer){
             throw new IllegalFieldException(AccErrorMessage.ACCOUNT_NOT_FOUND);
         }
     }
@@ -109,6 +121,14 @@ public class AccAccountValidationService {
         if (amount.compareTo(BigDecimal.ZERO) < 1){
 
             throw new IllegalFieldException(AccErrorMessage.AMOUNT_MUST_BE_POSITIVE);
+        }
+    }
+
+    public void controlIsDateIntervalValid(LocalDate startDate, LocalDate endDate) {
+
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)){
+
+            throw new IllegalFieldException(AccErrorMessage.INVALID_DATE_INTERVAL);
         }
     }
 }
