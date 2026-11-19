@@ -140,7 +140,10 @@ public class AccAccountActivityService {
 
     public List<AccAccountActivityDto> getAccountStatement(Long accountId, LocalDate startDate, LocalDate endDate) {
 
+        Long currentCustomerId = accAccountEntityService.getCurrentCustomerId();
+
         accAccountValidationService.controlIsAccountIdExist(accountId);
+        accAccountValidationService.controlIsAccountOwnedByCustomer(accountId, currentCustomerId);
         accAccountValidationService.controlIsDateIntervalValid(startDate, endDate);
 
         List<AccAccountActivity> accAccountActivityList = accAccountActivityEntityService

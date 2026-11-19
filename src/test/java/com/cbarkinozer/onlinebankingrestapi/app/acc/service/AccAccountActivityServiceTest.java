@@ -2,6 +2,7 @@ package com.cbarkinozer.onlinebankingrestapi.app.acc.service;
 
 import com.cbarkinozer.onlinebankingrestapi.app.acc.dto.AccAccountActivityDto;
 import com.cbarkinozer.onlinebankingrestapi.app.acc.dto.AccMoneyActivityRequestDto;
+import com.cbarkinozer.onlinebankingrestapi.app.acc.entity.AccAccount;
 import com.cbarkinozer.onlinebankingrestapi.app.acc.entity.AccAccountActivity;
 import com.cbarkinozer.onlinebankingrestapi.app.acc.enums.AccAccountActivityType;
 import com.cbarkinozer.onlinebankingrestapi.app.acc.enums.AccErrorMessage;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -185,6 +187,7 @@ class AccAccountActivityServiceTest {
         accAccountActivityList.add(createDummyAccAccountActivity(LocalDate.of(2022, 1, 5), AccAccountActivityType.DEPOSIT));
         accAccountActivityList.add(createDummyAccAccountActivity(LocalDate.of(2022, 1, 20), AccAccountActivityType.WITHDRAW));
 
+        when(accAccountEntityService.getCurrentCustomerId()).thenReturn(1L);
         when(accAccountActivityEntityService.findAccountActivitiesByAccountIdAndDateInterval(1L, startDate, endDate))
                 .thenReturn(accAccountActivityList);
 
@@ -199,6 +202,7 @@ class AccAccountActivityServiceTest {
         assertEquals(AccAccountActivityType.WITHDRAW, result.get(1).getAccountActivityType());
 
         verify(accAccountValidationService).controlIsAccountIdExist(1L);
+        verify(accAccountValidationService).controlIsAccountOwnedByCustomer(1L, 1L);
         verify(accAccountValidationService).controlIsDateIntervalValid(startDate, endDate);
     }
 
@@ -233,6 +237,47 @@ class AccAccountActivityServiceTest {
         assertEquals(illegalFieldException.getBaseErrorMessage().getMessage(), result.getBaseErrorMessage().getMessage());
         assertEquals(illegalFieldException.getBaseErrorMessage().getDetailMessage(), result.getBaseErrorMessage().getDetailMessage());
         verifyNoInteractions(accAccountActivityEntityService);
+    }
+
+    @Test
+    void shouldNotGetAccountStatement_WhenAccount_BelongsToAnotherCustomer() {
+
+        LocalDate startDate = LocalDate.of(2022, 1, 1);
+        LocalDate endDate = LocalDate.of(2022, 1, 31);
+
+        IllegalFieldException illegalFieldException = new IllegalFieldException(AccErrorMessage.ACCOUNT_NOT_FOUND);
+
+        when(accAccountEntityService.getCurrentCustomerId()).thenReturn(2L);
+        doThrow(illegalFieldException).when(accAccountValidationService).controlIsAccountOwnedByCustomer(1L, 2L);
+
+        IllegalFieldException result = assertThrows(IllegalFieldException.class,
+                () -> accAccountActivityService.getAccountStatement(1L, startDate, endDate));
+
+        assertEquals(AccErrorMessage.ACCOUNT_NOT_FOUND, result.getBaseErrorMessage());
+        verifyNoInteractions(accAccountActivityEntityService);
+    }
+
+    @Test
+    void shouldControlAccountOwnership() {
+
+        AccAccountValidationService validationService =
+                new AccAccountValidationService(accAccountEntityService, mock(CusCustomerEntityService.class));
+
+        AccAccount accAccount = new AccAccount();
+        accAccount.setId(1L);
+        accAccount.setCustomerId(1L);
+
+        when(accAccountEntityService.findAccountById(1L)).thenReturn(Optional.of(accAccount));
+        when(accAccountEntityService.findAccountById(9L)).thenReturn(Optional.empty());
+
+        assertDoesNotThrow(() -> validationService.controlIsAccountOwnedByCustomer(1L, 1L));
+
+        IllegalFieldException otherCustomer = assertThrows(IllegalFieldException.class,
+                () -> validationService.controlIsAccountOwnedByCustomer(1L, 2L));
+        assertEquals(AccErrorMessage.ACCOUNT_NOT_FOUND, otherCustomer.getBaseErrorMessage());
+
+        assertThrows(IllegalFieldException.class, () -> validationService.controlIsAccountOwnedByCustomer(1L, null));
+        assertThrows(IllegalFieldException.class, () -> validationService.controlIsAccountOwnedByCustomer(9L, 1L));
     }
 
     @Test

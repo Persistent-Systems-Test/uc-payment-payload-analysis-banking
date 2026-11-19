@@ -149,7 +149,7 @@ public class AccAccountController {
     @Operation(
             tags = "Account Controller",
             summary = "Get account statement",
-            description = "Gets the account activities of an account between the given dates (inclusive)."
+            description = "Gets the account activities of an account owned by the current customer between the given dates (inclusive)."
     )
     @GetMapping("/{accountId}/statement")
     public ResponseEntity<RestResponse<List<AccAccountActivityDto>>> getAccountStatement(
