@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Optional;
 
 @Service
@@ -109,6 +110,14 @@ public class AccAccountValidationService {
         if (amount.compareTo(BigDecimal.ZERO) < 1){
 
             throw new IllegalFieldException(AccErrorMessage.AMOUNT_MUST_BE_POSITIVE);
+        }
+    }
+
+    public void controlIsDateIntervalValid(LocalDate startDate, LocalDate endDate) {
+
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)){
+
+            throw new IllegalFieldException(AccErrorMessage.INVALID_DATE_INTERVAL);
         }
     }
 }

@@ -15,6 +15,8 @@ public enum AccErrorMessage implements BaseErrorMessage {
             ,"Please be sure that you entered a balance that is not negative"),
     AMOUNT_MUST_BE_POSITIVE("Amount must be positive"
             ,"Please be sure that the entered amount value is larger than zero"),
+    INVALID_DATE_INTERVAL("Invalid date interval"
+            ,"Start date must not be after end date and both dates are required"),
     ;
 
     private  final String message;

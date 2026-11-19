@@ -27,4 +27,6 @@ public interface AccAccountMapper {
 
     AccAccountActivityDto convertToAccAccountActivityDto(AccAccountActivity accAccountActivity);
 
+    List<AccAccountActivityDto> convertToAccAccountActivityDtoList(List<AccAccountActivity> accAccountActivityList);
+
 }

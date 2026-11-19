@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 @Transactional
@@ -135,5 +136,18 @@ public class AccAccountActivityService {
         AccAccountActivityDto accAccountActivityDto = AccAccountMapper.INSTANCE.convertToAccAccountActivityDto(accAccountActivity);
 
         return accAccountActivityDto;
+    }
+
+    public List<AccAccountActivityDto> getAccountStatement(Long accountId, LocalDate startDate, LocalDate endDate) {
+
+        accAccountValidationService.controlIsAccountIdExist(accountId);
+        accAccountValidationService.controlIsDateIntervalValid(startDate, endDate);
+
+        List<AccAccountActivity> accAccountActivityList = accAccountActivityEntityService
+                .findAccountActivitiesByAccountIdAndDateInterval(accountId, startDate, endDate);
+
+        List<AccAccountActivityDto> accAccountActivityDtoList = AccAccountMapper.INSTANCE.convertToAccAccountActivityDtoList(accAccountActivityList);
+
+        return accAccountActivityDtoList;
     }
 }

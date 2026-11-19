@@ -2,9 +2,12 @@ package com.cbarkinozer.onlinebankingrestapi.app.acc.service;
 
 import com.cbarkinozer.onlinebankingrestapi.app.acc.dto.AccAccountActivityDto;
 import com.cbarkinozer.onlinebankingrestapi.app.acc.dto.AccMoneyActivityRequestDto;
+import com.cbarkinozer.onlinebankingrestapi.app.acc.entity.AccAccountActivity;
+import com.cbarkinozer.onlinebankingrestapi.app.acc.enums.AccAccountActivityType;
 import com.cbarkinozer.onlinebankingrestapi.app.acc.enums.AccErrorMessage;
 import com.cbarkinozer.onlinebankingrestapi.app.acc.service.entityservice.AccAccountActivityEntityService;
 import com.cbarkinozer.onlinebankingrestapi.app.acc.service.entityservice.AccAccountEntityService;
+import com.cbarkinozer.onlinebankingrestapi.app.cus.service.entityservice.CusCustomerEntityService;
 import com.cbarkinozer.onlinebankingrestapi.app.gen.enums.GenErrorMessage;
 import com.cbarkinozer.onlinebankingrestapi.app.gen.exceptions.GenBusinessException;
 import com.cbarkinozer.onlinebankingrestapi.app.gen.exceptions.IllegalFieldException;
@@ -15,6 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -167,5 +173,114 @@ class AccAccountActivityServiceTest {
         assertEquals(illegalFieldException.getBaseErrorMessage().getDetailMessage(), result.getBaseErrorMessage().getDetailMessage());
         assertNotNull(result);
 
+    }
+
+    @Test
+    void shouldGetAccountStatement() {
+
+        LocalDate startDate = LocalDate.of(2022, 1, 1);
+        LocalDate endDate = LocalDate.of(2022, 1, 31);
+
+        List<AccAccountActivity> accAccountActivityList = new ArrayList<>();
+        accAccountActivityList.add(createDummyAccAccountActivity(LocalDate.of(2022, 1, 5), AccAccountActivityType.DEPOSIT));
+        accAccountActivityList.add(createDummyAccAccountActivity(LocalDate.of(2022, 1, 20), AccAccountActivityType.WITHDRAW));
+
+        when(accAccountActivityEntityService.findAccountActivitiesByAccountIdAndDateInterval(1L, startDate, endDate))
+                .thenReturn(accAccountActivityList);
+
+        List<AccAccountActivityDto> result = accAccountActivityService.getAccountStatement(1L, startDate, endDate);
+
+        assertEquals(2, result.size());
+        assertEquals(1L, result.get(0).getAccountId());
+        assertEquals(LocalDate.of(2022, 1, 5), result.get(0).getTransactionDate());
+        assertEquals(AccAccountActivityType.DEPOSIT, result.get(0).getAccountActivityType());
+        assertEquals(BigDecimal.valueOf(100), result.get(0).getAmount());
+        assertEquals(LocalDate.of(2022, 1, 20), result.get(1).getTransactionDate());
+        assertEquals(AccAccountActivityType.WITHDRAW, result.get(1).getAccountActivityType());
+
+        verify(accAccountValidationService).controlIsAccountIdExist(1L);
+        verify(accAccountValidationService).controlIsDateIntervalValid(startDate, endDate);
+    }
+
+    @Test
+    void shouldGetEmptyAccountStatement_WhenNoActivity_InDateInterval() {
+
+        LocalDate startDate = LocalDate.of(2022, 1, 1);
+        LocalDate endDate = LocalDate.of(2022, 1, 31);
+
+        when(accAccountActivityEntityService.findAccountActivitiesByAccountIdAndDateInterval(1L, startDate, endDate))
+                .thenReturn(new ArrayList<>());
+
+        List<AccAccountActivityDto> result = accAccountActivityService.getAccountStatement(1L, startDate, endDate);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldNotGetAccountStatement_WhenAccountId_DoesNotExist() {
+
+        LocalDate startDate = LocalDate.of(2022, 1, 1);
+        LocalDate endDate = LocalDate.of(2022, 1, 31);
+
+        IllegalFieldException illegalFieldException = new IllegalFieldException(AccErrorMessage.ACCOUNT_NOT_FOUND);
+
+        doThrow(illegalFieldException).when(accAccountValidationService).controlIsAccountIdExist(0L);
+
+        IllegalFieldException result = assertThrows(IllegalFieldException.class,
+                () -> accAccountActivityService.getAccountStatement(0L, startDate, endDate));
+
+        assertEquals(illegalFieldException.getBaseErrorMessage().getMessage(), result.getBaseErrorMessage().getMessage());
+        assertEquals(illegalFieldException.getBaseErrorMessage().getDetailMessage(), result.getBaseErrorMessage().getDetailMessage());
+        verifyNoInteractions(accAccountActivityEntityService);
+    }
+
+    @Test
+    void shouldNotGetAccountStatement_WhenStartDate_IsAfterEndDate() {
+
+        LocalDate startDate = LocalDate.of(2022, 2, 1);
+        LocalDate endDate = LocalDate.of(2022, 1, 1);
+
+        IllegalFieldException illegalFieldException = new IllegalFieldException(AccErrorMessage.INVALID_DATE_INTERVAL);
+
+        doThrow(illegalFieldException).when(accAccountValidationService).controlIsDateIntervalValid(startDate, endDate);
+
+        IllegalFieldException result = assertThrows(IllegalFieldException.class,
+                () -> accAccountActivityService.getAccountStatement(1L, startDate, endDate));
+
+        assertEquals(AccErrorMessage.INVALID_DATE_INTERVAL.getMessage(), result.getBaseErrorMessage().getMessage());
+        assertEquals(AccErrorMessage.INVALID_DATE_INTERVAL.getDetailMessage(), result.getBaseErrorMessage().getDetailMessage());
+        verifyNoInteractions(accAccountActivityEntityService);
+    }
+
+    @Test
+    void shouldThrowInvalidDateInterval_WhenValidationFails() {
+
+        AccAccountValidationService validationService =
+                new AccAccountValidationService(accAccountEntityService, mock(CusCustomerEntityService.class));
+
+        LocalDate date = LocalDate.of(2022, 1, 1);
+
+        assertDoesNotThrow(() -> validationService.controlIsDateIntervalValid(date, date));
+        assertDoesNotThrow(() -> validationService.controlIsDateIntervalValid(date, date.plusDays(1)));
+
+        IllegalFieldException afterEnd = assertThrows(IllegalFieldException.class,
+                () -> validationService.controlIsDateIntervalValid(date.plusDays(1), date));
+        assertEquals(AccErrorMessage.INVALID_DATE_INTERVAL, afterEnd.getBaseErrorMessage());
+
+        assertThrows(IllegalFieldException.class, () -> validationService.controlIsDateIntervalValid(null, date));
+        assertThrows(IllegalFieldException.class, () -> validationService.controlIsDateIntervalValid(date, null));
+    }
+
+    private AccAccountActivity createDummyAccAccountActivity(LocalDate transactionDate, AccAccountActivityType activityType) {
+
+        AccAccountActivity accAccountActivity = new AccAccountActivity();
+        accAccountActivity.setAccountId(1L);
+        accAccountActivity.setAmount(BigDecimal.valueOf(100));
+        accAccountActivity.setTransactionDate(transactionDate);
+        accAccountActivity.setCurrentBalance(BigDecimal.valueOf(500));
+        accAccountActivity.setAccountActivityType(activityType);
+
+        return accAccountActivity;
     }
 }

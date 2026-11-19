@@ -7,12 +7,14 @@ import com.cbarkinozer.onlinebankingrestapi.app.acc.service.AccMoneyTransferServ
 import com.cbarkinozer.onlinebankingrestapi.app.gen.dto.RestResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -142,6 +144,23 @@ public class AccAccountController {
         AccAccountActivityDto accAccountActivityDto = accAccountActivityService.deposit(accMoneyActivityRequestDto);
 
         return ResponseEntity.ok(RestResponse.of(accAccountActivityDto));
+    }
+
+    @Operation(
+            tags = "Account Controller",
+            summary = "Get account statement",
+            description = "Gets the account activities of an account between the given dates (inclusive)."
+    )
+    @GetMapping("/{accountId}/statement")
+    public ResponseEntity<RestResponse<List<AccAccountActivityDto>>> getAccountStatement(
+            @PathVariable Long accountId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate){
+
+        List<AccAccountActivityDto> accAccountActivityDtoList =
+                accAccountActivityService.getAccountStatement(accountId, startDate, endDate);
+
+        return ResponseEntity.ok(RestResponse.of(accAccountActivityDtoList));
     }
 
 }
